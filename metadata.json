@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "CBS Internal ERP",
+  "description": "Internal Enterprise Resource Planning (ERP) application for CBS, featuring sales, purchase, customer, inventory, and accounting modules.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
