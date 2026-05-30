@@ -116,8 +116,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-8 glow-card rounded-xl p-6 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="col-span-1 lg:col-span-8 glow-card rounded-xl p-6 overflow-hidden">
             <div className="flex justify-between items-center mb-6">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 glow-text">Tren Penjualan</h4>
@@ -183,7 +183,7 @@ export function Dashboard() {
             </div>
           </div>
           
-          <div className="col-span-4 glow-card rounded-xl p-6 flex flex-col max-h-[300px]">
+          <div className="col-span-1 lg:col-span-4 glow-card rounded-xl p-6 flex flex-col max-h-[300px]">
               <h4 className="text-xs font-bold text-slate-800 glow-text mb-4">Produk Kritis (Menipis)</h4>
               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                   {lowStockProducts.length === 0 ? (

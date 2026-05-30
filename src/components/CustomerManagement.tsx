@@ -161,8 +161,8 @@ export function CustomerManagement() {
       {/* Add Customer Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="glow-card rounded-2xl w-full max-w-md overflow-hidden flex flex-col glow-border">
-            <div className="p-6 border-b border-white/50 flex justify-between items-center bg-white/60">
+          <div className="glow-card rounded-2xl w-full max-w-md overflow-hidden flex flex-col glow-border max-h-[90vh]">
+            <div className="p-6 border-b border-white/50 flex justify-between items-center bg-white/60 shrink-0">
               <h3 className="text-lg font-bold text-slate-800 glow-text">Tambah Customer Baru</h3>
               <button 
                 onClick={() => setShowAddModal(false)} 
@@ -172,7 +172,7 @@ export function CustomerManagement() {
               </button>
             </div>
             
-            <form onSubmit={handleAddCustomer} className="p-6 space-y-4 bg-white/60">
+            <form onSubmit={handleAddCustomer} className="p-6 space-y-4 bg-white/60 overflow-y-auto flex-1">
               <div>
                 <label className="block text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1.5">Nama Perusahaan / Personal</label>
                 <input 

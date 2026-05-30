@@ -67,21 +67,21 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/5 text-slate-800 overflow-hidden font-sans">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#e2e8f0]/90 text-slate-800 font-sans p-4 sm:p-6 md:p-8 flex flex-col">
       <ParticleNetwork />
       {/* Aurora Glow background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh] bg-[radial-gradient(ellipse_at_center,rgba(4,192,202,0.22)_0%,rgba(79,70,229,0.15)_50%,transparent_70%)] rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
 
-      <div className="relative z-10 w-full max-w-5xl mx-4 flex flex-col md:flex-row shadow-[0_20px_60px_rgba(1,88,93,0.12)] rounded-3xl border border-white/60 overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.35)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' }}>
+      <div className="relative z-10 w-full max-w-5xl mx-auto my-auto flex flex-col md:flex-row shadow-[0_20px_60px_rgba(1,88,93,0.12)] rounded-3xl border border-white/60 overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.35)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' }}>
         
         {/* Left Side - Brand / Visual */}
-        <div className="w-full md:w-5/12 bg-indigo-600/85 backdrop-blur-lg p-12 text-white flex flex-col justify-between relative overflow-hidden">
+        <div className="w-full md:w-5/12 bg-indigo-600/85 backdrop-blur-lg p-6 sm:p-10 lg:p-12 text-white flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/75 to-indigo-800/75 mix-blend-multiply"></div>
           {/* Subtle overlay elements */}
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_50%)]"></div>
           
           <div className="relative z-10">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 border border-white/40 shadow-xl overflow-hidden shrink-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl flex items-center justify-center mb-6 sm:mb-8 border border-white/40 shadow-xl overflow-hidden shrink-0">
                 {!logoError ? (
                     <img 
                       src="/logo cbs.png" 
@@ -94,23 +94,23 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
                     <Ship size={32} className="text-indigo-600 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                 )}
             </div>
-            <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-4 drop-shadow-md">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight mb-2 sm:mb-4 drop-shadow-md">
               Internal Enterprise Resource Planning<br/>
-              <span className="text-xl lg:text-2xl opacity-90 mt-2 block font-bold tracking-wide">PT. Caraca Bintang Samudra</span>
+              <span className="text-base lg:text-xl opacity-90 mt-1 block font-bold tracking-wide">PT. Caraca Bintang Samudra</span>
             </h1>
           </div>
           
-          <div className="relative z-10 mt-12 bg-white/10 rounded-xl p-6 border border-white/20 backdrop-blur-sm shadow-xl">
-             <div className="flex items-center gap-3 mb-2">
-                 <ShieldCheck size={20} className="text-emerald-300 drop-shadow-[0_0_5px_rgba(110,231,183,0.8)]" />
-                 <h3 className="font-bold text-sm tracking-wide">Secure Access</h3>
-             </div>
-             <p className="text-xs text-indigo-100/90 leading-relaxed">Sistem terenkripsi penuh. Seluruh pembuatan akun baru wajib melalui tahap persetujuan Administrator internal.</p>
+          <div className="relative z-10 mt-6 sm:mt-12 bg-white/10 rounded-xl p-4 sm:p-6 border border-white/20 backdrop-blur-sm shadow-xl">
+              <div className="flex items-center gap-3 mb-2">
+                  <ShieldCheck size={18} className="text-emerald-300 drop-shadow-[0_0_5px_rgba(110,231,183,0.8)]" />
+                  <h3 className="font-bold text-xs sm:text-sm tracking-wide">Secure Access</h3>
+              </div>
+              <p className="text-[11px] sm:text-xs text-indigo-100/90 leading-relaxed">Sistem terenkripsi penuh. Seluruh pembuatan akun baru wajib melalui tahap persetujuan Administrator internal.</p>
           </div>
         </div>
 
         {/* Right Side - Form */}
-        <div className="w-full md:w-7/12 p-10 lg:p-16 bg-white/15 flex flex-col justify-center backdrop-blur-xl border-l border-white/20">
+        <div className="w-full md:w-7/12 p-6 sm:p-10 lg:p-16 bg-white/15 flex flex-col justify-center backdrop-blur-xl border-t md:border-t-0 md:border-l border-white/20">
             
             <div className="mb-8 text-center md:text-left">
                 <h2 className="text-2xl lg:text-3xl font-black text-slate-800 mb-2 tracking-tight">

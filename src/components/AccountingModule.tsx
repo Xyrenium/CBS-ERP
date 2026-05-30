@@ -792,7 +792,7 @@ export function AccountingModule() {
 
               {activeTab === 'journal' && (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                      <div className="col-span-8">
+                      <div className="col-span-1 lg:col-span-8">
                           <div className="flex justify-between items-center mb-4">
                               <h4 className="text-xs font-bold text-slate-800 glow-text">Recent Ledger Entries (Jurnal Umum & Buku Besar)</h4>
                               <div className="flex gap-2">
@@ -848,7 +848,7 @@ export function AccountingModule() {
                           </div>
                       </div>
                       
-                      <div className="col-span-4 glow-card p-6 rounded-xl h-fit">
+                      <div className="col-span-1 lg:col-span-4 glow-card p-6 rounded-xl h-fit">
                           <h4 className="text-xs font-bold text-slate-800 mb-4 border-b border-white/50 pb-3 glow-text">Posting Jurnal Manual</h4>
                           <form onSubmit={handleJournalSubmit} className="space-y-4">
                               <div>
