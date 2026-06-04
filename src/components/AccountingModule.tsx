@@ -20,6 +20,25 @@ export function AccountingModule() {
   const [qtMemo, setQtMemo] = useState<string>('');
   const [qtCounterAcc, setQtCounterAcc] = useState<string>('3-1000');
 
+  // Sub-tab within Quick Transaction State
+  const [subTxType, setSubTxType] = useState<'operasional' | 'lainnya'>('operasional');
+
+  // Other Transaction (Pemasukan & Pengeluaran Lain-lain) Form State
+  const [othTxMode, setOthTxMode] = useState<'pemasukan' | 'pengeluaran'>('pemasukan');
+  const [othTxType, setOthTxType] = useState<string>('asset_sale');
+  const [othTxAmount, setOthTxAmount] = useState<number>(0);
+  const [othTxDate, setOthTxDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [othTxMemo, setOthTxMemo] = useState<string>('');
+
+  // Automatically adjust other transaction type based on mode selection
+  useEffect(() => {
+    if (othTxMode === 'pemasukan') {
+      setOthTxType('asset_sale');
+    } else {
+      setOthTxType('tax');
+    }
+  }, [othTxMode]);
+
   // Automatically adjust action and counterpart options based on selected account category
   useEffect(() => {
     switch (qtCategory) {
@@ -290,6 +309,85 @@ export function AccountingModule() {
     setQtMemo('');
   };
 
+  const getOtherJournalArgs = (
+    mode: 'pemasukan' | 'pengeluaran',
+    type: string,
+    amount: number,
+    date: string,
+    memo: string
+  ) => {
+    let debits: { accountCode: string; amount: number }[] = [];
+    let credits: { accountCode: string; amount: number }[] = [];
+    let generatedMemo = memo;
+
+    if (mode === 'pemasukan') {
+      debits = [{ accountCode: '1-1000', amount }];
+      if (type === 'asset_sale') {
+        credits = [{ accountCode: '1-4000', amount }];
+        if (!memo) generatedMemo = 'Penerimaan Kas - Penjualan Aktiva Tetap';
+      } else if (type === 'loan') {
+        credits = [{ accountCode: '2-2000', amount }];
+        if (!memo) generatedMemo = 'Penerimaan Kas - Pinjaman Dana Bank';
+      } else if (type === 'capital') {
+        credits = [{ accountCode: '3-1000', amount }];
+        if (!memo) generatedMemo = 'Penerimaan Kas - Penanaman Modal / Investasi Pemilik';
+      } else {
+        credits = [{ accountCode: '4-2000', amount }];
+        if (!memo) generatedMemo = 'Penerimaan Kas - Lain-Lain Non-Operasional';
+      }
+    } else {
+      credits = [{ accountCode: '1-1000', amount }];
+      if (type === 'tax') {
+        debits = [{ accountCode: '6-2000', amount }];
+        if (!memo) generatedMemo = 'Pengeluaran Kas - Pembayaran Pajak Perusahaan';
+      } else if (type === 'asset_buy') {
+        debits = [{ accountCode: '1-4000', amount }];
+        if (!memo) generatedMemo = 'Pengeluaran Kas - Pembelian Aktiva Tetap';
+      } else if (type === 'installment') {
+        debits = [{ accountCode: '2-2000', amount }];
+        if (!memo) generatedMemo = 'Pengeluaran Kas - Pembayaran Cicilan Pinjaman Bank';
+      } else {
+        debits = [{ accountCode: '3-2000', amount }];
+        if (!memo) generatedMemo = 'Pengeluaran Kas - Pembagian Dividen Pemegang Saham';
+      }
+    }
+
+    return { debits, credits, description: generatedMemo };
+  };
+
+  const handleOtherTransactionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (othTxAmount <= 0) {
+      alert('Nominal transaksi harus lebih besar dari Nol.');
+      return;
+    }
+
+    const { debits, credits, description } = getOtherJournalArgs(
+      othTxMode,
+      othTxType,
+      othTxAmount,
+      othTxDate,
+      othTxMemo
+    );
+
+    if (debits.length === 0 || credits.length === 0) {
+      alert('Gagal memproses jurnal otomatis. Periksa konfigurasi akun.');
+      return;
+    }
+
+    addJournalEntry({
+      id: `J-AUTO-${Date.now()}`,
+      date: othTxDate,
+      description,
+      debits,
+      credits
+    });
+
+    alert(`Transaksi kas lainnya berhasil dibukukan! Jurnal otomatis Debit-Kredit telah terposting.`);
+    setOthTxAmount(0);
+    setOthTxMemo('');
+  };
+
   // Ledger Filter State
   const [ledgerAccount, setLedgerAccount] = useState<string>('ALL');
   const [ledgerPeriod, setLedgerPeriod] = useState<string>('');
@@ -437,179 +535,369 @@ export function AccountingModule() {
               </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-3 sm:p-6 pb-6">
               {activeTab === 'quick_transaction' && (
                   <div className="space-y-6">
-                      <div className="border-b border-white/45 pb-3">
-                          <h3 className="text-sm font-bold text-slate-800 glow-text">Pencatatan Transaksi & Jurnal Otomatis</h3>
-                          <p className="text-[11px] text-indigo-700 opacity-85 mt-0.5">Input aktivitas keuangan Anda di bawah ini. Sistem ERP akan otomatis menerjemahkan dan membukukannya ke dalam Jurnal Umum ganda (Debit-Kredit) secara balance.</p>
+                      <div className="border-b border-white/45 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                              <h3 className="text-sm font-bold text-slate-800 glow-text">Pencatatan Transaksi & Jurnal Otomatis</h3>
+                              <p className="text-[11px] text-indigo-700 opacity-85 mt-0.5">Input aktivitas keuangan Anda di bawah ini. Sistem ERP akan otomatis menerjemahkan dan membukukannya ke dalam Jurnal Umum ganda (Debit-Kredit) secara balance.</p>
+                          </div>
+                          
+                          {/* Sub Tabs Selection */}
+                          <div className="flex bg-slate-200/50 p-1 rounded-lg border border-slate-300/30 gap-1 self-start sm:self-center shrink-0">
+                              <button
+                                  type="button"
+                                  onClick={() => setSubTxType('operasional')}
+                                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-all ${subTxType === 'operasional' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-850'}`}
+                              >
+                                  💼 Operasional Utama
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => setSubTxType('lainnya')}
+                                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-all ${subTxType === 'lainnya' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-850'}`}
+                              >
+                                  📊 Transaksi Kas Lainnya
+                              </button>
+                          </div>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                          {/* L: The Input Form */}
-                          <div className="lg:col-span-6 bg-white/40 p-6 rounded-xl border border-white/50 shadow-sm space-y-4">
-                              <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-2">Formulir Catat Transaksi</h4>
-                              <form onSubmit={handleQuickTransactionSubmit} className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                      <div>
-                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Tanggal Transaksi</label>
-                                          <input 
-                                              type="date" 
-                                              required 
-                                              value={qtDate} 
-                                              onChange={e => setQtDate(e.target.value)} 
-                                              className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700"
-                                          />
-                                      </div>
-                                      <div>
-                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Klasifikasi Akun Utama</label>
-                                          <select 
-                                              value={qtCategory} 
-                                              onChange={e => setQtCategory(e.target.value)} 
-                                              className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-indigo-700 bg-white/70 cursor-pointer"
-                                          >
-                                              <option value="1-1000">Kas & Bank (1-1000)</option>
-                                              <option value="1-2000">Piutang Usaha (1-2000)</option>
-                                              <option value="2-1000">Hutang Usaha (2-1000)</option>
-                                              <option value="1-3000">Persediaan Barang (1-3000)</option>
-                                              <option value="4-1000">Akun Penjualan (4-1000)</option>
-                                              <option value="5-2000">Akun Pembelian (5-2000)</option>
-                                              <option value="6-1000">Biaya Operasional (6-1000)</option>
-                                              <option value="3-1000">Modal & Laba Ditahan (3-1000)</option>
-                                          </select>
-                                      </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div>
-                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Aktivitas penambahan / pengurangan</label>
-                                          <select 
-                                              value={qtAction} 
-                                              onChange={e => setQtAction(e.target.value)} 
-                                              className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700 bg-white/70 cursor-pointer"
-                                          >
-                                              {getActionsForCategory(qtCategory).map(act => (
-                                                  <option key={act.value} value={act.value}>{act.label}</option>
-                                              ))}
-                                          </select>
-                                      </div>
-
-                                      <div>
-                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Sandingkan dengan (Akun Lawan)</label>
-                                          <select 
-                                              value={qtCounterAcc} 
-                                              onChange={e => setQtCounterAcc(e.target.value)} 
-                                              className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700 bg-white/70 cursor-pointer"
-                                          >
-                                              {getCounterAccountsForCategory(qtCategory, qtAction).map(acc => (
-                                                  <option key={acc.code} value={acc.code}>{acc.name} ({acc.code})</option>
-                                              ))}
-                                          </select>
-                                      </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-4">
-                                      <div>
-                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Nominal Transaksi (Rp)</label>
-                                          <div className="relative">
-                                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                  <span className="text-slate-400 font-bold text-xs">Rp</span>
-                                              </div>
+                      {subTxType === 'operasional' ? (
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-200">
+                              {/* L: The Input Form */}
+                              <div className="lg:col-span-6 bg-white/40 p-6 rounded-xl border border-white/50 shadow-sm space-y-4">
+                                  <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-2">Formulir Catat Transaksi</h4>
+                                  <form onSubmit={handleQuickTransactionSubmit} className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Tanggal Transaksi</label>
                                               <input 
-                                                  type="number" 
+                                                  type="date" 
                                                   required 
-                                                  min="1" 
-                                                  value={qtAmount || ''} 
-                                                  onChange={e => setQtAmount(parseInt(e.target.value) || 0)} 
-                                                  placeholder="Masukkan jumlah rupiah"
-                                                  className="w-full pl-8 pr-3 py-2.5 glow-input rounded-md text-xs font-bold text-emerald-700"
+                                                  value={qtDate} 
+                                                  onChange={e => setQtDate(e.target.value)} 
+                                                  className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700"
                                               />
                                           </div>
-                                      </div>
-                                  </div>
-
-                                  <div>
-                                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Catatan / Memo Keterangan (Opsional)</label>
-                                      <input 
-                                          type="text" 
-                                          value={qtMemo} 
-                                          onChange={e => setQtMemo(e.target.value)} 
-                                          placeholder="Contoh: Pembayaran internet kantor, dll. Kosongkan untuk memo otomatis."
-                                          className="w-full px-3 py-2 glow-input rounded-md text-xs text-slate-600"
-                                      />
-                                  </div>
-
-                                  <button 
-                                      type="submit" 
-                                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all active:scale-95 text-xs uppercase tracking-wider"
-                                  >
-                                      SIMPAN & POSTING KE JURNAL
-                                  </button>
-                              </form>
-                          </div>
-
-                          {/* R: Live preview */}
-                          <div className="lg:col-span-6 bg-slate-900/5 p-6 rounded-xl border border-dashed border-indigo-200 flex flex-col justify-between">
-                              <div>
-                                  <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                      <span>🔮 Live Blueprint Ayat Jurnal Otomatis</span>
-                                  </h4>
-                                  <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
-                                      Sistem akuntansi menggunakan sistem pencatatan berpasangan. Berikut bocoran ayat jurnal yang akan terbentuk saat tombol simpan ditekan:
-                                  </p>
-
-                                  <div className="bg-white border border-slate-200 rounded-lg p-4 font-mono text-xs shadow-sm shadow-indigo-100 space-y-3">
-                                      <div className="flex justify-between items-start border-b border-dashed border-slate-200 pb-2 flex-wrap gap-2">
                                           <div>
-                                              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">J-AUTO-TEMPLATE</span>
-                                              <p className="text-[9px] text-slate-400 mt-1">Tanggal: {qtDate}</p>
+                                              <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Klasifikasi Akun Utama</label>
+                                              <select 
+                                                  value={qtCategory} 
+                                                  onChange={e => setQtCategory(e.target.value)} 
+                                                  className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-indigo-700 bg-white/70 cursor-pointer"
+                                              >
+                                                  <option value="1-1000">Kas & Bank (1-1000)</option>
+                                                  <option value="1-2000">Piutang Usaha (1-2000)</option>
+                                                  <option value="2-1000">Hutang Usaha (2-1000)</option>
+                                                  <option value="1-3000">Persediaan Barang (1-3000)</option>
+                                                  <option value="4-1000">Akun Penjualan (4-1000)</option>
+                                                  <option value="5-2000">Akun Pembelian (5-2000)</option>
+                                                  <option value="6-1000">Biaya Operasional (6-1000)</option>
+                                                  <option value="3-1000">Modal & Laba Ditahan (3-1000)</option>
+                                              </select>
                                           </div>
-                                          <div className="text-right">
-                                              <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">AUTO MATCH</span>
-                                          </div>
-                                      </div>
-                                      
-                                      <div>
-                                          <p className="text-[10px] text-slate-400">Memo Deskripsi:</p>
-                                          <p className="text-[11px] font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded mt-0.5">
-                                              {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).description}
-                                          </p>
                                       </div>
 
-                                      <div className="pt-2">
-                                          <table className="w-full text-left text-[11px]">
-                                              <thead>
-                                                  <tr className="text-[9px] text-slate-400 border-b border-slate-100">
-                                                      <th className="pb-1">Nama Rekening Ledger</th>
-                                                      <th className="pb-1 text-right">Debit (D)</th>
-                                                      <th className="pb-1 text-right">Kredit (K)</th>
-                                                  </tr>
-                                              </thead>
-                                              <tbody className="divide-y divide-slate-100">
-                                                  {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).debits.map(d => (
-                                                      <tr key={`deb-${d.accountCode}`} className="text-indigo-700 font-bold">
-                                                          <td className="py-2.5">{accounts.find(a => a.code === d.accountCode)?.name} ({d.accountCode})</td>
-                                                          <td className="py-2.5 text-right">Rp {d.amount.toLocaleString('id-ID')}</td>
-                                                          <td className="py-2.5 text-right">-</td>
-                                                      </tr>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Aktivitas penambahan / pengurangan</label>
+                                              <select 
+                                                  value={qtAction} 
+                                                  onChange={e => setQtAction(e.target.value)} 
+                                                  className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700 bg-white/70 cursor-pointer"
+                                              >
+                                                  {getActionsForCategory(qtCategory).map(act => (
+                                                      <option key={act.value} value={act.value}>{act.label}</option>
                                                   ))}
-                                                  {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).credits.map(c => (
-                                                      <tr key={`cred-${c.accountCode}`} className="text-slate-600">
-                                                          <td className="py-2.5 pl-4 flex items-center gap-1">
-                                                              <ArrowRight size={10} className="text-slate-400 shrink-0"/>
-                                                              <span>{accounts.find(a => a.code === c.accountCode)?.name} ({c.accountCode})</span>
-                                                          </td>
-                                                          <td className="py-2.5 text-right">-</td>
-                                                          <td className="py-2.5 text-right font-bold text-emerald-700">Rp {c.amount.toLocaleString('id-ID')}</td>
-                                                      </tr>
+                                              </select>
+                                          </div>
+
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Sandingkan dengan (Akun Lawan)</label>
+                                              <select 
+                                                  value={qtCounterAcc} 
+                                                  onChange={e => setQtCounterAcc(e.target.value)} 
+                                                  className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700 bg-white/70 cursor-pointer"
+                                              >
+                                                  {getCounterAccountsForCategory(qtCategory, qtAction).map(acc => (
+                                                      <option key={acc.code} value={acc.code}>{acc.name} ({acc.code})</option>
                                                   ))}
-                                              </tbody>
-                                          </table>
+                                              </select>
+                                          </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 gap-4">
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Nominal Transaksi (Rp)</label>
+                                              <div className="relative">
+                                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                      <span className="text-slate-400 font-bold text-xs">Rp</span>
+                                                  </div>
+                                                  <input 
+                                                      type="number" 
+                                                      required 
+                                                      min="1" 
+                                                      value={qtAmount || ''} 
+                                                      onChange={e => setQtAmount(parseInt(e.target.value) || 0)} 
+                                                      placeholder="Masukkan jumlah rupiah"
+                                                      className="w-full pl-8 pr-3 py-2.5 glow-input rounded-md text-xs font-bold text-emerald-700"
+                                                  />
+                                              </div>
+                                          </div>
+                                      </div>
+
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Catatan / Memo Keterangan (Opsional)</label>
+                                          <input 
+                                              type="text" 
+                                              value={qtMemo} 
+                                              onChange={e => setQtMemo(e.target.value)} 
+                                              placeholder="Contoh: Pembayaran internet kantor, dll. Kosongkan untuk memo otomatis."
+                                              className="w-full px-3 py-2 glow-input rounded-md text-xs text-slate-600"
+                                          />
+                                      </div>
+
+                                      <button 
+                                          type="submit" 
+                                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all active:scale-95 text-xs uppercase tracking-wider"
+                                      >
+                                          SIMPAN & POSTING KE JURNAL
+                                      </button>
+                                  </form>
+                              </div>
+
+                              {/* R: Live preview */}
+                              <div className="lg:col-span-6 bg-slate-900/5 p-6 rounded-xl border border-dashed border-indigo-200 flex flex-col justify-between">
+                                  <div>
+                                      <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                          <span>🔮 Live Blueprint Ayat Jurnal Otomatis</span>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                          Sistem akuntansi menggunakan sistem pencatatan berpasangan. Berikut bocoran ayat jurnal yang akan terbentuk saat tombol simpan ditekan:
+                                      </p>
+
+                                      <div className="bg-white border border-slate-200 rounded-lg p-4 font-mono text-xs shadow-sm shadow-indigo-100 space-y-3">
+                                          <div className="flex justify-between items-start border-b border-dashed border-slate-200 pb-2 flex-wrap gap-2">
+                                              <div>
+                                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">J-AUTO-TEMPLATE</span>
+                                                  <p className="text-[9px] text-slate-400 mt-1">Tanggal: {qtDate}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                  <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">AUTO MATCH</span>
+                                              </div>
+                                          </div>
+                                          
+                                          <div>
+                                              <p className="text-[10px] text-slate-400">Memo Deskripsi:</p>
+                                              <p className="text-[11px] font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded mt-0.5">
+                                                  {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).description}
+                                              </p>
+                                          </div>
+
+                                          <div className="pt-2">
+                                              <table className="w-full text-left text-[11px]">
+                                                  <thead>
+                                                      <tr className="text-[9px] text-slate-400 border-b border-slate-100">
+                                                          <th className="pb-1">Nama Rekening Ledger</th>
+                                                          <th className="pb-1 text-right">Debit (D)</th>
+                                                          <th className="pb-1 text-right">Kredit (K)</th>
+                                                      </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-slate-100">
+                                                      {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).debits.map(d => (
+                                                          <tr key={`deb-${d.accountCode}`} className="text-indigo-700 font-bold">
+                                                              <td className="py-2.5">{accounts.find(a => a.code === d.accountCode)?.name} ({d.accountCode})</td>
+                                                              <td className="py-2.5 text-right">Rp {d.amount.toLocaleString('id-ID')}</td>
+                                                              <td className="py-2.5 text-right">-</td>
+                                                          </tr>
+                                                      ))}
+                                                      {getAutoJournalArgs(qtCategory, qtAction, qtAmount || 1000000, qtDate, qtMemo, qtCounterAcc).credits.map(c => (
+                                                          <tr key={`cred-${c.accountCode}`} className="text-slate-600">
+                                                              <td className="py-2.5 pl-4 flex items-center gap-1">
+                                                                  <ArrowRight size={10} className="text-slate-400 shrink-0"/>
+                                                                  <span>{accounts.find(a => a.code === c.accountCode)?.name} ({c.accountCode})</span>
+                                                              </td>
+                                                              <td className="py-2.5 text-right">-</td>
+                                                              <td className="py-2.5 text-right font-bold text-emerald-700">Rp {c.amount.toLocaleString('id-ID')}</td>
+                                                          </tr>
+                                                      ))}
+                                                  </tbody>
+                                              </table>
+                                          </div>
                                       </div>
                                   </div>
                               </div>
                           </div>
-                      </div>
+                      ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-200">
+                              {/* L: The Input Form (Lainnya) */}
+                              <div className="lg:col-span-6 bg-white/40 p-6 rounded-xl border border-white/50 shadow-sm space-y-4">
+                                  <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-2 border-b border-indigo-100 pb-2">Formulir Kas Non-Operasional</h4>
+                                  
+                                  <form onSubmit={handleOtherTransactionSubmit} className="space-y-4">
+                                      {/* Mode: Pemasukan vs Pengeluaran */}
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-slate-750 uppercase mb-1.5">Klasifikasi Aliran Kas</label>
+                                          <div className="grid grid-cols-2 gap-2">
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setOthTxMode('pemasukan')}
+                                                  className={`py-2 text-xs font-bold rounded-lg border uppercase tracking-wider transition-all ${othTxMode === 'pemasukan' ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-sm' : 'bg-white/50 text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                              >
+                                                  📥 Kas Masuk (Inflow)
+                                              </button>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setOthTxMode('pengeluaran')}
+                                                  className={`py-2 text-xs font-bold rounded-lg border uppercase tracking-wider transition-all ${othTxMode === 'pengeluaran' ? 'bg-rose-50 text-rose-700 border-rose-300 shadow-sm' : 'bg-white/50 text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                              >
+                                                  📤 Kas Keluar (Outflow)
+                                              </button>
+                                          </div>
+                                      </div>
+
+                                      {/* Type Dropdown */}
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-slate-750 uppercase mb-1">Kategori Pencatatan</label>
+                                          <select
+                                              value={othTxType}
+                                              onChange={e => setOthTxType(e.target.value)}
+                                              className="w-full px-3 py-2.5 glow-input rounded-md text-xs font-bold text-slate-700 bg-white/70 cursor-pointer"
+                                          >
+                                              {othTxMode === 'pemasukan' ? (
+                                                  <>
+                                                      <option value="asset_sale">Penjualan Aktiva Tetap (Asset Sale)</option>
+                                                      <option value="loan">Terima Pinjaman Bank / Pihak Ketiga (Loans)</option>
+                                                      <option value="capital">Penanaman Modal / Setor Investasi (Capital)</option>
+                                                      <option value="other_recv">Penerimaan Lain-Lain (Other Receipts)</option>
+                                                  </>
+                                              ) : (
+                                                  <>
+                                                      <option value="tax">Pembayaran Pajak Badan (Tax Payment)</option>
+                                                      <option value="asset_buy">Pembelian Aktiva Tetap Baru (Asset Purchase)</option>
+                                                      <option value="installment">Pembayaran Angsuran Pinjaman (Loan Installment)</option>
+                                                      <option value="dividend">Pembagian Dividen / Penarikan Prive (Dividend)</option>
+                                                  </>
+                                              )}
+                                          </select>
+                                      </div>
+
+                                      {/* Date and Amount */}
+                                      <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-750 uppercase mb-1">Tanggal Bayar</label>
+                                              <input
+                                                  type="date"
+                                                  required
+                                                  value={othTxDate}
+                                                  onChange={e => setOthTxDate(e.target.value)}
+                                                  className="w-full px-3 py-2 glow-input rounded-md text-xs font-semibold text-slate-700"
+                                              />
+                                          </div>
+                                          <div>
+                                              <label className="block text-[10px] font-bold text-slate-750 uppercase mb-1">Nominal Transaksi (Rp)</label>
+                                              <div className="relative">
+                                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                      <span className="text-slate-400 font-bold text-xs">Rp</span>
+                                                  </div>
+                                                  <input
+                                                      type="number"
+                                                      required
+                                                      min="1"
+                                                      value={othTxAmount || ''}
+                                                      onChange={e => setOthTxAmount(parseInt(e.target.value) || 0)}
+                                                      placeholder="Jumlah uang..."
+                                                      className="w-full pl-8 pr-3 py-2 glow-input rounded-md text-xs font-bold text-emerald-700"
+                                                  />
+                                              </div>
+                                          </div>
+                                      </div>
+
+                                      {/* Memo */}
+                                      <div>
+                                          <label className="block text-[10px] font-bold text-slate-755 uppercase mb-1">Catatan Keterangan / Memo</label>
+                                          <input
+                                              type="text"
+                                              value={othTxMemo}
+                                              onChange={e => setOthTxMemo(e.target.value)}
+                                              placeholder="Contoh: Setoran modal pemegang saham PT CBS, Pembayaran pajak PPN dll"
+                                              className="w-full px-3 py-2 glow-input rounded-md text-xs text-slate-600"
+                                          />
+                                      </div>
+
+                                      <button
+                                          type="submit"
+                                          className="w-full bg-indigo-650 hover:bg-indigo-750 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all active:scale-95 text-xs uppercase tracking-wider"
+                                      >
+                                          BUKUKAN TRANSAKSI CAS LAINNYA
+                                      </button>
+                                  </form>
+                              </div>
+
+                              {/* R: Live Blueprint Area */}
+                              <div className="lg:col-span-6 bg-slate-900/5 p-6 rounded-xl border border-dashed border-indigo-200 flex flex-col justify-between">
+                                  <div>
+                                      <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                          <span>🔮 Live Blueprint Ayat Jurnal Otomatis</span>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
+                                          Sistem akuntansi menggunakan sistem pencatatan berpasangan. Berikut bocoran ayat jurnal yang akan terbentuk saat tombol simpan ditekan:
+                                      </p>
+
+                                      <div className="bg-white border border-slate-200 rounded-lg p-4 font-mono text-xs shadow-sm shadow-indigo-100 space-y-3">
+                                          <div className="flex justify-between items-start border-b border-dashed border-slate-200 pb-2 flex-wrap gap-2">
+                                              <div>
+                                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">J-AUX-TEMPLATE</span>
+                                                  <p className="text-[9px] text-slate-400 mt-1">Tanggal: {othTxDate}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                  <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">AUTO MATCH</span>
+                                              </div>
+                                          </div>
+                                          
+                                          <div>
+                                              <p className="text-[10px] text-slate-400">Memo Deskripsi:</p>
+                                              <p className="text-[11px] font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded mt-0.5">
+                                                  {getOtherJournalArgs(othTxMode, othTxType, othTxAmount || 1000000, othTxDate, othTxMemo).description}
+                                              </p>
+                                          </div>
+
+                                          <div className="pt-2">
+                                              <table className="w-full text-left text-[11px]">
+                                                  <thead>
+                                                      <tr className="text-[9px] text-slate-400 border-b border-slate-100">
+                                                          <th className="pb-1">Nama Rekening Ledger</th>
+                                                          <th className="pb-1 text-right">Debit (D)</th>
+                                                          <th className="pb-1 text-right">Kredit (K)</th>
+                                                      </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-slate-100">
+                                                      {getOtherJournalArgs(othTxMode, othTxType, othTxAmount || 1000000, othTxDate, othTxMemo).debits.map(d => (
+                                                          <tr key={`deb-${d.accountCode}`} className="text-indigo-700 font-bold">
+                                                              <td className="py-2.5">{accounts.find(a => a.code === d.accountCode)?.name} ({d.accountCode})</td>
+                                                              <td className="py-2.5 text-right">Rp {d.amount.toLocaleString('id-ID')}</td>
+                                                              <td className="py-2.5 text-right">-</td>
+                                                          </tr>
+                                                      ))}
+                                                      {getOtherJournalArgs(othTxMode, othTxType, othTxAmount || 1000000, othTxDate, othTxMemo).credits.map(c => (
+                                                          <tr key={`cred-${c.accountCode}`} className="text-slate-600">
+                                                              <td className="py-2.5 pl-4 flex items-center gap-1">
+                                                                  <ArrowRight size={10} className="text-slate-400 shrink-0"/>
+                                                                  <span>{accounts.find(a => a.code === c.accountCode)?.name} ({c.accountCode})</span>
+                                                              </td>
+                                                              <td className="py-2.5 text-right">-</td>
+                                                              <td className="py-2.5 text-right font-bold text-emerald-700">Rp {c.amount.toLocaleString('id-ID')}</td>
+                                                          </tr>
+                                                      ))}
+                                                  </tbody>
+                                              </table>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
                   </div>
               )}
 
@@ -882,182 +1170,194 @@ export function AccountingModule() {
 
               {activeTab === 'reports' && (
                   <div className="print-area">
-                      <div className="flex justify-between items-center mb-8 no-print border-b border-white/50 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 no-print border-b border-indigo-100 pb-4 gap-3">
                           <div>
-                              <h4 className="text-xs font-bold text-slate-800 glow-text">Financial Reports Engine</h4>
+                              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest glow-text">Financial Reports Engine</h4>
                               <p className="text-[10px] text-indigo-700 opacity-80">Laporan di-generate secara real-time dari buku besar.</p>
                           </div>
                           <div className="flex gap-2">
-                              <button onClick={handleDownloadPDF} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-xs font-bold shadow-sm flex items-center transition-colors">
-                                  <Download size={16} className="mr-2"/> EXPORT PDF
+                              <button onClick={handleDownloadPDF} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm flex items-center transition-all active:scale-95">
+                                  <Download size={14} className="mr-2"/> EXPORT PDF
                               </button>
                           </div>
                       </div>
 
-                      <div ref={reportRef} className="bg-white p-10 rounded-xl" id="report-content">
+                      <div ref={reportRef} className="bg-white p-3 sm:p-6 md:p-10 rounded-xl border border-slate-200/50 shadow-sm" id="report-content">
                           {/* Printable Header with Logo and Company Name */}
-                          <div className="flex justify-between items-center border-b-2 border-slate-300 pb-6 mb-8 gap-4 text-slate-800">
-                              <div className="flex items-center gap-4">
-                                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                          <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b-2 border-slate-300 pb-6 mb-8 gap-4 text-slate-800">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-left">
+                                  <div className="w-16 h-16 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-sm mx-auto sm:mx-0">
                                       <img src="/logo cbs.png" alt="Logo PT. Caraca Bintang Samudra" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                                   </div>
-                                  <div className="text-left">
-                                      <h1 className="text-lg font-bold tracking-tight text-slate-800 uppercase">PT. CARACA BINTANG SAMUDRA</h1>
-                                      <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mt-0.5">Enterprise Maritime Supplier & Logistics</p>
-                                      <p className="text-[11px] text-slate-400 mt-1">Jl. Pelabuhan Raya No. 88, Tanjung Priok, Jakarta Utara, 14310</p>
+                                  <div>
+                                      <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight text-slate-800 uppercase leading-snug">PT. CARACA BINTANG SAMUDRA</h1>
+                                      <p className="text-[9px] sm:text-[10px] font-bold text-emerald-700 uppercase tracking-wider mt-0.5">Enterprise Maritime Supplier & Logistics</p>
+                                      <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Jl. Pelabuhan Raya No. 88, Tanjung Priok, Jakarta Utara, 14310</p>
                                   </div>
                               </div>
-                              <div className="text-right">
-                                  <h2 className="text-sm font-bold uppercase tracking-wider text-indigo-700">LAPORAN KEUANGAN KONSOLIDASI</h2>
-                                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">Generated: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                              <div className="text-left md:text-right shrink-0">
+                                  <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-700">LAPORAN KEUANGAN KONSOLIDASI</h2>
+                                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono mt-0.5">Generated: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                               </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                          {/* Laporan Laba Rugi */}
-                          <div className="glow-card p-8 rounded-xl shadow-sm">
-                              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest text-center glow-text">LAPORAN LABA RUGI</h3>
-                              <p className="text-center text-[10px] text-slate-400 mb-8 border-b border-white/50 pb-4">Periode Berjalan</p>
-                              
-                              <div className="space-y-4 text-xs">
-                                  <div className="border-b border-white/50 pb-3 mb-3">
-                                      <div className="flex justify-between items-center font-bold text-indigo-700 glow-text">
-                                          <span>PENDAPATAN PENJUALAN</span>
-                                          <span>Rp {revenueBalance.toLocaleString('id-ID')}</span>
-                                      </div>
-                                  </div>
-                                  <div className="border-b border-white/50 pb-3 mb-3">
-                                      <p className="font-bold text-slate-800 mb-2">BEBAN POKOK & BIAYA:</p>
-                                      {accounts.filter(a => a.type === 'Expense').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span>(Rp {a.balance.toLocaleString('id-ID')})</span>
-                                          </div>
-                                      ))}
-                                      <div className="flex justify-between items-center font-bold text-slate-200 pl-4 pt-3 mt-2 border-t border-white/50">
-                                          <span>TOTAL BEBAN OPERASIONAL</span>
-                                          <span className="text-red-400">(Rp {expenseBalance.toLocaleString('id-ID')})</span>
-                                      </div>
-                                  </div>
-                                  <div className="flex justify-between items-center font-bold text-base text-slate-800 border-b-2 border-indigo-500 pb-2 pt-2 glow-text">
-                                      <span>LABA BERSIH (PROFIT)</span>
-                                      <span className={retainedEarnings >= 0 ? 'text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]' : 'text-red-400 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]'}>Rp {retainedEarnings.toLocaleString('id-ID')}</span>
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* Neraca */}
-                          <div className="glow-card p-8 rounded-xl shadow-sm relative">
-                              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest text-center glow-text">NERACA (BALANCE SHEET)</h3>
-                              <p className="text-center text-[10px] text-slate-400 mb-8 border-b border-white/50 pb-4">Posisi Keuangan Saat Ini</p>
-
-                              <div className="space-y-6 text-xs">
-                                  {/* Aset */}
-                                  <div>
-                                      <h4 className="font-bold text-slate-800 glow-border bg-indigo-100/80 px-3 py-1.5 rounded uppercase tracking-wide mb-3 glow-text">AKTIVA (ASET)</h4>
-                                      {accounts.filter(a => a.type === 'Asset').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-2 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span className="font-medium text-slate-800">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                          </div>
-                                      ))}
-                                      <div className="flex justify-between items-center font-bold text-indigo-700 glow-text bg-white/60 px-2 py-2 mt-3 border-y border-white/50">
-                                          <span>TOTAL ASET</span>
-                                          <span className="text-sm">Rp {assetBalance.toLocaleString('id-ID')}</span>
-                                      </div>
-                                  </div>
-
-                                  {/* Kewajiban & Ekuitas */}
-                                  <div>
-                                      <h4 className="font-bold text-slate-800 glow-border bg-emerald-100/80 px-3 py-1.5 rounded uppercase tracking-wide mb-3 glow-text-purple">PASIVA (KEWAJIBAN & EKUITAS)</h4>
-                                      
-                                      <p className="font-bold text-emerald-700 mt-2 mb-2 pl-2">Kewajiban / Hutang</p>
-                                      {accounts.filter(a => a.type === 'Liability').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span className="text-slate-800">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                          </div>
-                                      ))}
-                                      
-                                      <p className="font-bold text-emerald-700 mt-4 mb-2 pl-2">Ekuitas & Modal</p>
-                                      {accounts.filter(a => a.type === 'Equity').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span className="text-slate-800">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                          </div>
-                                      ))}
-                                      {/* Inject Laba Berjalan */}
-                                      <div className="flex justify-between items-center text-slate-600 pl-4 mb-1.5 pt-2 border-t border-white/50">
-                                          <span className="italic">Laba/(Rugi) Periode Berjalan</span>
-                                          <span className="font-bold text-slate-800">Rp {retainedEarnings.toLocaleString('id-ID')}</span>
-                                      </div>
-
-                                      <div className="flex justify-between items-center font-bold text-emerald-700 glow-text-purple bg-white/60 px-2 py-2 mt-3 border-y border-white/50">
-                                          <span>TOTAL PASIVA</span>
-                                          <span className="text-sm">Rp {(liabilityBalance + equityBalance + retainedEarnings).toLocaleString('id-ID')}</span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
+                              {/* Laporan Laba Rugi */}
+                              <div className="glow-card p-4 sm:p-6 md:p-8 rounded-xl shadow-sm">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-indigo-100 pb-4 mb-6 gap-2">
+                                      <div className="text-left w-full sm:w-auto">
+                                          <h3 className="text-xs sm:text-sm font-bold text-slate-850 uppercase tracking-widest glow-text">LAPORAN LABA RUGI</h3>
+                                          <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Pendapatan dan Kinerja Periode Berjalan</p>
                                       </div>
                                   </div>
                                   
-                                  {/* Persamaan Dasar Akuntansi Validator */}
-                                  <div className="absolute top-6 left-6 no-print">
-                                      <div className={`flex items-center gap-2 p-1.5 rounded glow-border shadow-sm ${isBalanced ? 'bg-emerald-500/20 text-emerald-600 border-emerald-400/50' : 'bg-red-500/20 text-red-600 border-red-400/50'}`}>
-                                          <div className={`w-2 h-2 rounded-full ${isBalanced ? 'bg-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]' : 'bg-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]'}`}></div>
-                                          <span className="text-[9px] font-bold uppercase">{isBalanced ? 'BALANCED' : 'UNBALANCED'}</span>
+                                  <div className="space-y-4 text-xs">
+                                      <div className="border-b border-white/50 pb-3 mb-3">
+                                          <div className="flex justify-between items-center font-bold text-indigo-750 text-[11px] sm:text-xs md:text-sm glow-text gap-2">
+                                              <span>PENDAPATAN PENJUALAN</span>
+                                              <span className="font-mono">Rp {revenueBalance.toLocaleString('id-ID')}</span>
+                                          </div>
+                                      </div>
+                                      <div className="border-b border-white/50 pb-3 mb-3">
+                                          <p className="font-bold text-slate-800 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2.5">BEBAN POKOK & BIAYA:</p>
+                                          {accounts.filter(a => a.type === 'Expense').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-2 sm:pl-4 mb-2 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono font-medium shrink-0 text-slate-500">(Rp {a.balance.toLocaleString('id-ID')})</span>
+                                              </div>
+                                          ))}
+                                          <div className="flex justify-between items-center font-bold text-slate-800 pl-2 sm:pl-4 pt-3 mt-3 border-t border-slate-200">
+                                              <span className="text-[11px] sm:text-xs">TOTAL BEBAN OPERASIONAL</span>
+                                              <span className="text-red-600 font-mono text-[11px] sm:text-xs shrink-0">(Rp {expenseBalance.toLocaleString('id-ID')})</span>
+                                          </div>
+                                      </div>
+                                      <div className="flex justify-between items-center font-bold text-xs sm:text-sm md:text-base text-slate-800 border-b-2 border-indigo-500 pb-2 pt-2 glow-text gap-2">
+                                          <span>LABA BERSIH (PROFIT)</span>
+                                          <span className={`font-mono shrink-0 ${retainedEarnings >= 0 ? 'text-emerald-600 font-black' : 'text-red-600 font-black'}`}>
+                                              {retainedEarnings >= 0 ? '' : '-'}Rp {Math.abs(retainedEarnings).toLocaleString('id-ID')}
+                                          </span>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              {/* Neraca */}
+                              <div className="glow-card p-4 sm:p-6 md:p-8 rounded-xl shadow-sm">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-indigo-100 pb-4 mb-6 gap-2">
+                                      <div className="text-left w-full sm:w-auto">
+                                          <h3 className="text-xs sm:text-sm font-bold text-slate-850 uppercase tracking-widest glow-text">NERACA (BALANCE SHEET)</h3>
+                                          <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Posisi Keuangan Terkini</p>
+                                      </div>
+                                      
+                                      <div className="no-print self-start sm:self-center shrink-0">
+                                          <div className={`flex items-center gap-1.5 p-1 px-2.5 rounded-lg border shadow-sm ${isBalanced ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300' : 'bg-rose-500/10 text-rose-700 border-rose-300'}`}>
+                                              <div className={`w-1.5 h-1.5 rounded-full ${isBalanced ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500 animate-pulse'}`}></div>
+                                              <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">{isBalanced ? 'BALANCED' : 'UNBALANCED'}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+
+                                  <div className="space-y-6 text-xs">
+                                      {/* Aset */}
+                                      <div>
+                                          <h4 className="font-bold text-slate-800 text-[10px] sm:text-[11px] bg-indigo-100/80 px-3 py-1.5 rounded uppercase tracking-wide mb-3 glow-text text-left">AKTIVA (ASET)</h4>
+                                          {accounts.filter(a => a.type === 'Asset').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-2 mb-2 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono font-medium text-slate-800 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                              </div>
+                                          ))}
+                                          <div className="flex justify-between items-center font-bold text-indigo-750 bg-slate-50 px-2 py-2 mt-3 border-y border-slate-200 text-[11px] sm:text-xs md:text-sm gap-2">
+                                              <span>TOTAL ASET</span>
+                                              <span className="font-mono text-indigo-800 font-bold shrink-0">Rp {assetBalance.toLocaleString('id-ID')}</span>
+                                          </div>
+                                      </div>
+
+                                      {/* Kewajiban & Ekuitas */}
+                                      <div>
+                                          <h4 className="font-bold text-slate-800 text-[10px] sm:text-[11px] bg-emerald-100/80 px-3 py-1.5 rounded uppercase tracking-wide mb-3 glow-text-purple text-left">PASIVA (KEWAJIBAN & EKUITAS)</h4>
+                                          
+                                          <p className="font-bold text-emerald-800 mt-2 mb-2 pl-2 text-[10px] uppercase tracking-wider">Kewajiban / Hutang</p>
+                                          {accounts.filter(a => a.type === 'Liability').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-2 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono text-slate-800 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                              </div>
+                                          ))}
+                                          
+                                          <p className="font-bold text-emerald-800 mt-4 mb-2 pl-2 text-[10px] uppercase tracking-wider">Ekuitas & Modal</p>
+                                          {accounts.filter(a => a.type === 'Equity').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-2 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono text-slate-800 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                              </div>
+                                          ))}
+                                          {/* Inject Laba Berjalan */}
+                                          <div className="flex justify-between items-center text-slate-600 pl-4 mb-2 pt-2 border-t border-slate-150 text-[11px] sm:text-xs gap-2">
+                                              <span className="italic">Laba/(Rugi) Periode Berjalan</span>
+                                              <span className="font-mono font-bold text-slate-800 shrink-0">Rp {retainedEarnings.toLocaleString('id-ID')}</span>
+                                          </div>
+
+                                          <div className="flex justify-between items-center font-bold text-emerald-750 bg-slate-50 px-2 py-2 mt-3 border-y border-slate-200 text-[11px] sm:text-xs md:text-sm gap-2">
+                                              <span>TOTAL PASIVA</span>
+                                              <span className="font-mono text-emerald-800 font-bold shrink-0">Rp {(liabilityBalance + equityBalance + retainedEarnings).toLocaleString('id-ID')}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 mt-6 md:mt-12">
+                              {/* Arus Kas Sederhana */}
+                              <div className="glow-card p-4 sm:p-6 md:p-8 rounded-xl shadow-sm">
+                                  <div className="border-b border-indigo-100 pb-3 mb-6">
+                                      <h3 className="text-xs sm:text-sm font-bold text-slate-850 uppercase tracking-widest glow-text">ARUS KAS (CASH FLOW)</h3>
+                                      <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Laporan Ketersediaan Saldo Kas & Bank</p>
+                                  </div>
+                                  
+                                  <div className="space-y-4 text-xs">
+                                      {accounts.filter(a => ['1-1000', '1-1010'].includes(a.code)).map(a => (
+                                          <div key={a.code} className="flex justify-between items-center border-b border-slate-100 pb-3 mb-3 text-[11px] sm:text-xs text-slate-600 gap-2">
+                                              <span className="truncate" title={a.name}>{a.name}</span>
+                                              <span className="font-mono font-bold text-indigo-700 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                          </div>
+                                      ))}
+                                      <div className="flex justify-between items-center font-bold text-xs sm:text-sm text-slate-850 border-b-2 border-indigo-500 pb-2 pt-2 gap-2">
+                                          <span>TOTAL KAS TERSEDIA</span>
+                                          <span className="font-mono text-indigo-750 font-black shrink-0">Rp {accounts.filter(a => ['1-1000', '1-1010'].includes(a.code)).reduce((sum, a) => sum + a.balance, 0).toLocaleString('id-ID')}</span>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              {/* Hutang & Piutang */}
+                              <div className="glow-card p-4 sm:p-6 md:p-8 rounded-xl shadow-sm">
+                                  <div className="border-b border-indigo-100 pb-3 mb-6">
+                                      <h3 className="text-xs sm:text-sm font-bold text-slate-850 uppercase tracking-widest glow-text">LAPORAN HUTANG & PIUTANG</h3>
+                                      <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Ringkasan Nilai Kewajiban & Tagihan Pelanggan</p>
+                                  </div>
+                                  
+                                  <div className="space-y-4 text-xs">
+                                      <div className="border-b border-slate-150 pb-3 mb-3">
+                                          <p className="font-bold text-slate-800 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2">PIUTANG USAHA (TAGIHAN CUSTOMER):</p>
+                                          {accounts.filter(a => a.code === '1-2000').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-2 sm:pl-4 mb-1.5 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono font-bold text-emerald-600 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                              </div>
+                                          ))}
+                                      </div>
+                                      <div className="border-b border-slate-150 pb-3 mb-3">
+                                          <p className="font-bold text-slate-800 text-[10px] sm:text-[11px] uppercase tracking-wider mb-2">HUTANG USAHA (TAGIHAN SUPPLIER):</p>
+                                          {accounts.filter(a => a.code === '2-1000').map(a => (
+                                              <div key={a.code} className="flex justify-between items-center text-slate-600 pl-2 sm:pl-4 mb-1.5 text-[11px] sm:text-xs gap-2">
+                                                  <span className="truncate" title={a.name}>{a.name}</span>
+                                                  <span className="font-mono font-bold text-red-500 shrink-0">Rp {a.balance.toLocaleString('id-ID')}</span>
+                                              </div>
+                                          ))}
                                       </div>
                                   </div>
                               </div>
                           </div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-12">
-                          {/* Arus Kas Sederhana */}
-                          <div className="glow-card p-8 rounded-xl shadow-sm">
-                              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest text-center glow-text">ARUS KAS (CASH FLOW)</h3>
-                              <p className="text-center text-[10px] text-slate-400 mb-8 border-b border-white/50 pb-4">Saldo Kas & Bank</p>
-                              
-                              <div className="space-y-4 text-xs">
-                                  {accounts.filter(a => ['1-1000', '1-1010'].includes(a.code)).map(a => (
-                                      <div key={a.code} className="flex justify-between items-center border-b border-white/50 pb-3 mb-3 text-slate-600">
-                                          <span>{a.name}</span>
-                                          <span className="font-bold text-indigo-700">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                      </div>
-                                  ))}
-                                  <div className="flex justify-between items-center font-bold text-base text-slate-800 border-b-2 border-indigo-500 pb-2 pt-2">
-                                      <span>TOTAL KAS TERSEDIA</span>
-                                      <span className="text-indigo-700">Rp {accounts.filter(a => ['1-1000', '1-1010'].includes(a.code)).reduce((sum, a) => sum + a.balance, 0).toLocaleString('id-ID')}</span>
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* Hutang & Piutang */}
-                          <div className="glow-card p-8 rounded-xl shadow-sm">
-                              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest text-center glow-text">LAPORAN HUTANG & PIUTANG</h3>
-                              <p className="text-center text-[10px] text-slate-400 mb-8 border-b border-white/50 pb-4">Ringkasan Kewajiban & Tagihan</p>
-                              
-                              <div className="space-y-4 text-xs">
-                                  <div className="border-b border-white/50 pb-3 mb-3">
-                                      <p className="font-bold text-slate-800 mb-2">PIUTANG USAHA (TAGIHAN CUSTOMER):</p>
-                                      {accounts.filter(a => a.code === '1-2000').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span className="font-bold text-emerald-600">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                          </div>
-                                      ))}
-                                  </div>
-                                  <div className="border-b border-white/50 pb-3 mb-3">
-                                      <p className="font-bold text-slate-800 mb-2">HUTANG USAHA (TAGIHAN SUPPLIER):</p>
-                                      {accounts.filter(a => a.code === '2-1000').map(a => (
-                                          <div key={a.code} className="flex justify-between items-center text-slate-600 pl-4 mb-1.5">
-                                              <span>{a.name}</span>
-                                              <span className="font-bold text-red-500">Rp {a.balance.toLocaleString('id-ID')}</span>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                      </div>
-
                   </div>
               )}
           </div>

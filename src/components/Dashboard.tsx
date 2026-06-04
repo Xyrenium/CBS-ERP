@@ -1,14 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store';
-import { TrendingUp, ShoppingCart, Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, AlertTriangle, CheckCircle2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
 export function Dashboard() {
-  const { sales, purchases, customers, products } = useStore();
+  const { sales, purchases, customers, products, accounts } = useStore();
   const [dateFilter, setDateFilter] = useState<'1M' | '3M' | '1Y' | 'ALL'>('ALL');
 
   const totalPurchases = purchases.reduce((sum, p) => sum + p.total, 0);
   
   const lowStockProducts = products.filter(p => p.stock <= p.minStock);
+  
+  const piutangUsaha = useMemo(() => {
+    return accounts.find(a => a.code === '1-2000')?.balance || 0;
+  }, [accounts]);
+
+  const hutangUsaha = useMemo(() => {
+    return accounts.find(a => a.code === '2-1000')?.balance || 0;
+  }, [accounts]);
   
   const filteredSales = useMemo(() => {
     const now = new Date();
@@ -112,6 +120,61 @@ export function Dashboard() {
           </h3>
           <p className={`text-[10px] mt-2 ${lowStockProducts.length > 0 ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
             Prioritas pengadaan diperlukan
+          </p>
+        </div>
+      </div>
+
+      {/* Ringkasan Hubungan Niaga (Hutang & Piutang Usaha) Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Panel Piutang */}
+        <div className="glow-card p-6 rounded-2xl border border-white/60 bg-gradient-to-br from-indigo-50/20 to-white/60 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200">
+                  Aset Lancar
+                </span>
+                <h4 className="text-sm font-bold text-slate-850 mt-2">Piutang Usaha (Accounts Receivable)</h4>
+              </div>
+              <div className="p-3 bg-indigo-50/70 text-indigo-600 rounded-2xl border border-indigo-100 shadow-sm animate-pulse">
+                <ArrowDownLeft size={20} />
+              </div>
+            </div>
+            <div className="my-2">
+              <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">Total Tagihan Aktif</span>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-1">
+                Rp {piutangUsaha.toLocaleString('id-ID')}
+              </h3>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed mt-4 pt-3 border-t border-slate-200/50">
+            Representasi dana perusahaan yang masih ada di tangan pembeli (Klien) berbentuk tagihan tempo penjualan (Piutang Dagang).
+          </p>
+        </div>
+
+        {/* Panel Hutang */}
+        <div className="glow-card p-6 rounded-2xl border border-white/60 bg-gradient-to-br from-rose-50/20 to-white/60 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 rounded-full border border-rose-200">
+                  Kewajiban Lancar
+                </span>
+                <h4 className="text-sm font-bold text-slate-850 mt-2">Hutang Usaha (Accounts Payable)</h4>
+              </div>
+              <div className="p-3 bg-rose-50/70 text-rose-600 rounded-2xl border border-rose-100 shadow-sm animate-pulse">
+                <ArrowUpRight size={20} />
+              </div>
+            </div>
+            <div className="my-2">
+              <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">Total Kewajiban Lancar</span>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-1">
+                Rp {hutangUsaha.toLocaleString('id-ID')}
+              </h3>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed mt-4 pt-3 border-t border-slate-200/50">
+            Representasi tagihan aktif dari Pemasok (Supplier) atas transaksi pembelian pengadaan barang yang belum dilunasi.
           </p>
         </div>
       </div>

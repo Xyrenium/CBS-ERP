@@ -7,7 +7,7 @@ import { ParticleNetwork } from './ParticleNetwork';
 export function LandingPage({ onComplete }: { onComplete: () => void }) {
   const { users, setUsers, setCurrentUser } = useStore();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
     setSuccessMsg('');
     
     // Bypass requirement: If empty, login as Admin directly
-    if (!email && !password) {
+    if (!employeeId && !password) {
         const adminUser = users.find(u => u.role === 'Admin');
         if (adminUser) {
             setCurrentUser(adminUser);
@@ -29,7 +29,7 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
         }
     }
 
-    const user = users.find(u => u.email === email && u.password === password);
+    const user = users.find(u => u.id.toLowerCase() === employeeId.trim().toLowerCase() && u.password === password);
     if (user) {
       if (user.status === 'pending') {
         setError('Akun Anda masih menunggu persetujuan Admin.');
@@ -38,7 +38,7 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
         onComplete();
       }
     } else {
-      setError('Email atau password salah. (Atau kosongkan form untuk bypass sbg Admin)');
+      setError('ID Karyawan atau password salah. (Atau kosongkan form untuk bypass sbg Admin)');
     }
   };
 
@@ -46,14 +46,21 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
-    if (users.find(u => u.email === email)) {
-      setError('Email sudah terdaftar.');
+    
+    if (!employeeId.trim()) {
+      setError('ID Karyawan tidak boleh kosong.');
       return;
     }
+
+    if (users.some(u => u.id.toLowerCase() === employeeId.trim().toLowerCase())) {
+      setError('ID Karyawan sudah terdaftar.');
+      return;
+    }
+
     const newUser: User = {
-      id: `U${Date.now()}`,
-      name,
-      email,
+      id: employeeId.trim(),
+      name: name.trim(),
+      email: `${employeeId.trim().toLowerCase()}@cbs.com`,
       password,
       role: 'Karyawan',
       status: 'pending' // default
@@ -61,18 +68,18 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
     setUsers([...users, newUser]);
     setSuccessMsg('Registrasi berhasil! Menunggu persetujuan Admin.');
     setIsLogin(true);
-    setEmail('');
+    setEmployeeId('');
     setPassword('');
     setName('');
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#e2e8f0]/90 text-slate-800 font-sans p-4 sm:p-6 md:p-8 flex flex-col">
+    <div className="relative min-h-screen w-full bg-[#e2e8f0]/90 text-slate-800 font-sans px-4 py-8 sm:px-6 md:px-8 flex flex-col items-center justify-center overflow-x-hidden">
       <ParticleNetwork />
       {/* Aurora Glow background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh] bg-[radial-gradient(ellipse_at_center,rgba(4,192,202,0.22)_0%,rgba(79,70,229,0.15)_50%,transparent_70%)] rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto my-auto flex flex-col md:flex-row shadow-[0_20px_60px_rgba(1,88,93,0.12)] rounded-3xl border border-white/60 overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.35)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' }}>
+      <div className="relative z-10 w-full max-w-5xl my-auto flex flex-col md:flex-row shadow-[0_20px_60px_rgba(1,88,93,0.12)] rounded-3xl border border-white/60 overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.35)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)' }}>
         
         {/* Left Side - Brand / Visual */}
         <div className="w-full md:w-5/12 bg-indigo-600/85 backdrop-blur-lg p-6 sm:p-10 lg:p-12 text-white flex flex-col justify-between relative overflow-hidden">
@@ -151,16 +158,16 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
                 )}
                 
                 <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Email Karyawan</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">ID Karyawan</label>
                     <div className="relative">
-                        <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input 
-                            type="email" 
+                            type="text" 
                             required={!isLogin} // Optional for login bypass
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
+                            value={employeeId}
+                            onChange={e => setEmployeeId(e.target.value)}
                             className="w-full pl-11 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/50 transition-all font-medium text-slate-800 shadow-sm backdrop-blur-sm placeholder-slate-400" 
-                            placeholder="nama@cbs.com"
+                            placeholder="Contoh: U002, CBS-001"
                         />
                     </div>
                 </div>
@@ -191,7 +198,7 @@ export function LandingPage({ onComplete }: { onComplete: () => void }) {
             <div className="mt-8 text-center border-t border-slate-200/50 pt-6">
                 <p className="text-sm text-slate-600 font-medium">
                     {isLogin ? "Belum memiliki akun?" : "Sudah memiliki akun?"}
-                    <button onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); setEmail(''); setPassword(''); }} className="ml-2 font-bold text-indigo-700 hover:text-indigo-800 transition-colors">
+                    <button onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); setEmployeeId(''); setPassword(''); }} className="ml-2 font-bold text-indigo-700 hover:text-indigo-800 transition-colors">
                         {isLogin ? "Daftar sekarang" : "Masuk di sini"}
                     </button>
                 </p>

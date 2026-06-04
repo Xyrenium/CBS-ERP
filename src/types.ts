@@ -11,16 +11,24 @@ export interface User {
 
 export interface Customer {
   id: string;
+  category: 'Client' | 'Supplier';
+  badanUsaha: 'PT' | 'CV' | 'PT Perseorangan' | 'Perorangan' | 'UD' | 'Lainnya';
   name: string;
   phone: string;
+  email: string;
+  address: string;
   active: boolean;
   notes: string;
+  bankAccount?: string;
 }
 
 export interface Product {
-  id: string;
+  id: string; // SKU / Kode Produk
   name: string;
-  category: 'Heavy Equipment' | 'Industrial Piping' | 'Consumables/ATK' | string;
+  description: string;
+  category: string;
+  unitCategory: string; // Kategori unit
+  basicUnit: string; // Satuan Dasar (e.g. Kg, gr, Ltr, pcs)
   stock: number;
   minStock: number;
   buyPrice: number;
